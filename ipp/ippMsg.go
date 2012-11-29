@@ -40,13 +40,26 @@ import (
 */
 
 type Message struct {
-	majorVer              int8
-	minorVer              int8
-	operationIdStatusCode uint16
-	requestId             int32
-	attributeGroups       []attributeGroup
-	endAttributeTag       byte
-	Data                  []byte
+	majorVer              	int8
+	minorVer              	int8
+	operationIdStatusCode 	uint16
+	operationOrStatusCode 	byte
+	requestId             	int32
+	attributeGroups       	[]attributeGroup
+	endAttributeTag       	byte
+	Data                  	[]byte
+	IsResponse				bool
+}
+
+func NewMessage(idStatusCode uint16) Message {
+	return newMessage(idStatusCode)
+}
+
+func typeCheck(i uint16) bool {
+	if i >= 0x0000 && i <= 0x7FFF {
+		return true
+	}
+	return false
 }
 
 func newMessage(idStatusCode uint16) Message {
@@ -107,11 +120,19 @@ func newAg(a attribute) attributeGroup {
 	return x
 }
 
+func (im *Message) AddAttribute(tag byte, name string, value interface{}) {
+	im.addAttribute(tag, name, value)
+	return
+}
+
+func (im *Message) AppendAttribute(attrib attribute) {
+	im.attributeGroups = append(im.attributeGroups, newAg(attrib))
+	return
+}
+
 func (im *Message) addAttribute(tag byte, name string, value interface{}) {
 	var attrib attribute
-	
 	attrib.addValue(tag, name, value)
-	
 	im.attributeGroups = append(im.attributeGroups, newAg(attrib))
 	return
 }
@@ -137,11 +158,12 @@ type attributeValue struct {
 	//  The "value-tag" field specifies the attribute syntax, 
 	//	e.g. 0x44 for the attribute syntax 'keyword'.
 	valueTag byte
+	valueTagStr string
 	//	The "name-length" specifies the length of the "name" field in bytes
 	//	IF the field has the value of 0 it signifies that this is an "additional-value". 
 	//	The value of the "name-length" field distinguishes an "additional-value" field
 	//	from an "attribute-with-one-value" field ("name-length" is not 0).
-	nameLength uint16
+	nameLength int16
 	//	The "name" field contains the textual name of the attribute, 
 	//	e.g."sides-supported"
 	name string
@@ -152,8 +174,30 @@ type attributeValue struct {
 	//	e.g. the textual value 'one-sided'.
 	value interface{}
 	Marshal	func() ([]byte, error)
+	UnMarshal	func([]byte) (error)
 	Length	func() (uint16)
+	String func() (string)
 }
+
+func NewAttribute() attribute {
+	var a attribute
+	return a
+}
+
+func (i *attribute) AddValue(tag byte, name string, value interface{}) {
+	i.addValue(tag, name, value)
+	return
+}
+func (a *attributeValue) Str() (s string) {
+	s = a.valueTagStr + " - " + a.name + " - " 
+	return
+}
+
+func (i *attribute) appendValue(av attributeValue) {
+	i.values = append(i.values, av)
+	return
+}
+// 0x20 to 0xFF
 
 //  The "value-tag" (tag byte) field specifies the attribute syntax, 
 //	e.g. 0x44 for the attribute syntax 'keyword'.
@@ -162,24 +206,26 @@ type attributeValue struct {
 //	The "value" (value []byte) field contains the value of the attribute, 
 //	e.g. the textual value 'one-sided'.
 func (i *attribute) addValue(tag byte, name string, value interface{}) {
-	if tag == 0 {
-		tag = 0x44
-	}
+
 	// if name == "" && len(i.values) <= 0 {return} //error: the first value of an attribute must be named  
 	// if name == "" && len(i.values) <= 0 {return} //error: additional values of an attribute cannot be named  
 	if len(i.values) > 0 {
-
 		var v attributeValue
+		
 		v.valueTag = tag
 		v.nameLength = 0x0000
+		v.value = value
+		v.refer()
+		v.valueLength = v.Length()
 		i.values = append(i.values, v)
+
 		return
 	}
 	
 	var vv attributeValue
 	vv.valueTag = tag
 	vv.name = name
-	vv.nameLength = uint16(len(name))
+	vv.nameLength = int16(len(name))
 	vv.value = value
 	vv.refer()
 	vv.valueLength = vv.Length()

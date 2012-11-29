@@ -3,7 +3,8 @@ package ipp
 import (
 	"bytes"
 	"encoding/binary"
-	//"log"
+	// "utils"
+	// "log"
 )
 
 //   -----------------------------------------------
@@ -98,8 +99,11 @@ func (im *Message) marshallAtrib() *bytes.Buffer {
 			//		valueLength int16
 			//	The "value" field contains the value of the attribute, e.g. the textual value 'one-sided'.
 			//		value       []byte
+			
+			// cnt := utils.Start(1)
 			for iii, v := range a.values {
-
+				// cnt.Plus()
+				// log.Println(cnt.Get())
 				if iii == 0 {
 					binary.Write(b, binary.BigEndian, v.valueTag)
 					binary.Write(b, binary.BigEndian, v.nameLength)

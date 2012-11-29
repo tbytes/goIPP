@@ -2,9 +2,10 @@ package main
 
 // import "fmt"
 import "ipp"
-
+  
 func main() {
 	var c ipp.CupsServer
-	c.SetServer("http://www.google.com")
-	c.GetPrinters()
+	c.SetServer("192.168.1.8")
+	c.GetPrinterAttributes()
+
 }
